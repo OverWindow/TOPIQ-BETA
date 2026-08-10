@@ -1,0 +1,41 @@
+@import url("https://cdn.jsdelivr.net/gh/sunn-us/SUIT/fonts/static/woff2/SUIT.css");
+@import "tailwindcss";
+
+:root {
+  font-family: "SUIT", ui-sans-serif, system-ui, sans-serif;
+  color: #121723;
+  background: #f7f9fc;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+
+.brand-grid {
+  background-image:
+    linear-gradient(rgba(21, 95, 204, .055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(21, 95, 204, .055) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: linear-gradient(to bottom, black, transparent 85%);
+}
+
+.hero-glow {
+  background:
+    radial-gradient(circle at 16% 22%, rgba(91, 127, 255, .24), transparent 30%),
+    radial-gradient(circle at 86% 12%, rgba(155, 176, 255, .2), transparent 27%),
+    linear-gradient(135deg, #f7f9ff 0%, #ffffff 48%, #f0f5ff 100%);
+}
+
+.exam-shell { min-height: 100vh; background: #f4f7fb; }
+.question-copy { white-space: pre-wrap; line-height: 1.9; word-break: keep-all; }
+.choice-button { transition: border-color .16s ease, background-color .16s ease, transform .16s ease; }
+.choice-button:hover { transform: translateY(-1px); }
+.focus-ring:focus-visible { outline: 3px solid rgba(21, 95, 204, .25); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+}

@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: unigate-topik-api
+    runtime: docker
+    rootDir: backend
+    plan: starter
+    healthCheckPath: /health
+    preDeployCommand: node dist/migrate.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: APP_ORIGINS
+        value: https://topik.unigate.kr
+      - key: DATABASE_SSL
+        value: require
+      - key: TRUST_PROXY
+        value: "true"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: topik-assets
