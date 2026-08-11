@@ -51,9 +51,9 @@ export function LandingPage() {
         <Header />
         <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-5 pb-22 pt-14 sm:px-8 sm:pb-28 sm:pt-20 lg:grid-cols-[1.1fr_.9fr] lg:gap-20">
           <div>
-            <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/75 px-4 py-2 text-xs font-extrabold tracking-[0.16em] text-[#155fcc] shadow-sm backdrop-blur">
+            {/* <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/75 px-4 py-2 text-xs font-extrabold tracking-[0.16em] text-[#155fcc] shadow-sm backdrop-blur">
               <Sparkles className="size-4" /> {t("heroEyebrow")}
-            </span>
+            </span> */}
             <h1 className="mt-7 max-w-3xl text-4xl font-black leading-[1.13] tracking-[-0.035em] text-[#121723] sm:text-5xl lg:text-[62px]">
               {t("heroTitle")}
             </h1>
@@ -92,7 +92,7 @@ export function LandingPage() {
       <section id="tests" className="scroll-mt-8 bg-[#f7f9fc] py-20 sm:py-26">
         <div className="mx-auto max-w-7xl px-5 sm:px-8">
           <div className="max-w-2xl">
-            <p className="text-sm font-extrabold tracking-[0.14em] text-[#155fcc]">MOCK TEST</p>
+            {/* <p className="text-sm font-extrabold tracking-[0.14em] text-[#155fcc]">MOCK TEST</p> */}
             <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">{t("chooseTest")}</h2>
             <p className="mt-4 text-base leading-7 text-slate-600">{t("chooseSubtitle")}</p>
           </div>
