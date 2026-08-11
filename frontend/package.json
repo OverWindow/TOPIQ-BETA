@@ -11,6 +11,7 @@
     "test": "vitest run --pool=threads --maxWorkers=1"
   },
   "dependencies": {
+    "@supabase/supabase-js": "latest",
     "@tailwindcss/vite": "latest",
     "lucide-react": "latest",
     "react": "latest",

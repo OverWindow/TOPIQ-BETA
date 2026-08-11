@@ -60,6 +60,7 @@ function BodyText({
   highlight: string;
 }) {
   const { body, layout, auxiliary, groupLabel } = presentation;
+  if (!body && !auxiliary) return groupLabel ? <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3.5 py-2 text-xs font-black text-[#155fcc]"><FileText className="size-3.5" />{groupLabel}</div> : null;
   const highlightIsInline = Boolean(highlight && body.includes(highlight));
   let content: ReactNode;
 
@@ -138,20 +139,20 @@ function ChoiceList({
   correctAnswer?: number;
 }) {
   return (
-    <div className="grid content-start gap-3" role="radiogroup" aria-label="Answer choices">
-      {question.choices.map((choice, index) => {
-        const option = index + 1;
+    <div className={`grid content-start gap-3 ${question.visualOptions?.length ? "grid-cols-1 sm:grid-cols-2" : ""}`} role="radiogroup" aria-label="Answer choices">
+      {((question.visualOptions?.length ?? 0) ? question.visualOptions!.map((visual) => ({ choice: "", visual })) : question.choices.map((choice, index) => ({ choice, visual: { number: index + 1, imageUrl: "" } }))).map(({ choice, visual }, index) => {
+        const option = visual.number || index + 1;
         const selected = question.selectedOption === option;
         const correct = correctAnswer === option;
         return (
           <button
-            key={`${option}-${choice}`}
+            key={`${option}-${choice || visual.imageUrl}`}
             type="button"
             role="radio"
             aria-checked={selected}
             disabled={disabled}
             onClick={() => onAnswer?.(option)}
-            className={`choice-button focus-ring flex min-h-15 items-start gap-4 rounded-2xl border px-4 py-4 text-left sm:px-5 ${
+            className={`choice-button focus-ring flex min-h-15 min-w-0 items-start gap-4 overflow-hidden rounded-2xl border px-4 py-4 text-left sm:px-5 ${
               correct
                 ? "border-emerald-400 bg-emerald-50"
                 : selected
@@ -162,7 +163,7 @@ function ChoiceList({
             <span className={`grid size-7 shrink-0 place-items-center rounded-full border text-sm font-bold ${selected ? "border-[#155fcc] bg-[#155fcc] text-white" : correct ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 text-slate-500"}`}>
               {correct ? <Check className="size-4" /> : choiceLabels[index]}
             </span>
-            <span className="question-copy pt-0.5 text-[15px] font-medium text-slate-800 sm:text-base">{choice}</span>
+            {visual.imageUrl ? <span className="block min-w-0 flex-1 overflow-hidden rounded-xl bg-slate-50"><img src={visual.imageUrl} alt={`선택지 ${option}`} className="mx-auto block h-auto max-h-72 w-full max-w-full object-contain" /></span> : <span className="question-copy min-w-0 flex-1 pt-0.5 text-[15px] font-medium text-slate-800 sm:text-base">{choice}</span>}
           </button>
         );
       })}
@@ -199,7 +200,10 @@ export function QuestionCard({
         data-two-column={presentation.twoColumn}
         className={presentation.twoColumn ? "grid gap-7 lg:grid-cols-[minmax(0,1.12fr)_minmax(320px,.88fr)] lg:items-start" : "space-y-7"}
       >
-        <BodyText presentation={presentation} highlight={question.highlightText} />
+        <div>
+          <BodyText presentation={presentation} highlight={question.highlightText} />
+          {question.transcript?.length ? <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50/60 p-5"><p className="mb-3 text-xs font-black tracking-[.12em] text-[#155fcc]">듣기 대본</p><div className="space-y-2">{question.transcript.map((turn, index) => <p key={index} className="question-copy text-sm text-slate-700"><b className={turn.speaker === "여자" ? "text-rose-600" : "text-blue-700"}>{turn.speaker}</b> {turn.text}</p>)}</div></div> : null}
+        </div>
         <ChoiceList
           question={question}
           onAnswer={onAnswer}

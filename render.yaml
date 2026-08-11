@@ -23,5 +23,19 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      - key: SUPABASE_STORAGE_BUCKET
-        value: topik-assets
+      - key: SUPABASE_AUDIO_BUCKET
+        value: topik-listening-audio
+      - key: SUPABASE_MEDIA_BUCKET
+        value: topik-question-media
+      - key: GOOGLE_CLOUD_PROJECT_ID
+        sync: false
+      - key: GOOGLE_CLOUD_CREDENTIALS_JSON
+        sync: false
+      - key: GOOGLE_TTS_MODEL
+        value: gemini-2.5-flash-tts
+      - key: GOOGLE_TTS_FEMALE_VOICE
+        value: Aoede
+      - key: GOOGLE_TTS_MALE_VOICE
+        value: Charon
+      - key: TTS_WORKER_ENABLED
+        value: "true"

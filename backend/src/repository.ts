@@ -10,6 +10,7 @@ import {
   type ResponseEventType,
 } from "./domain.js";
 import { AppError, notFound, resultsLocked, sessionClosed, unauthorized } from "./errors.js";
+import { SupabaseStorage } from "./storage.js";
 
 type SessionRow = {
   session_id: string;
@@ -37,6 +38,8 @@ type QuestionRow = {
   stem: string;
   choices: unknown;
   content_json: Record<string, unknown>;
+  audio_asset_id: string | null;
+  visual_assets: unknown;
   selected_option: number | null;
 };
 
@@ -203,9 +206,11 @@ export class TopikRepository {
       `SELECT mock_test_id AS "id", slug, title_id AS "titleId", title_ko AS "titleKo",
               description_id AS "descriptionId", description_ko AS "descriptionKo",
               duration_seconds AS "durationSeconds", question_count AS "questionCount",
-              max_score AS "maxScore"
-         FROM topik_app.mock_tests
-        WHERE is_published = TRUE
+              max_score AS "maxScore", mts.section
+         FROM topik_app.mock_tests mt
+         JOIN LATERAL (SELECT section FROM topik_app.mock_test_sections
+                        WHERE mock_test_id=mt.mock_test_id ORDER BY section_order LIMIT 1) mts ON TRUE
+        WHERE mt.is_published = TRUE
         ORDER BY display_order`,
     );
     return result.rows;
@@ -307,12 +312,20 @@ export class TopikRepository {
 
     const questions = await pool.query<QuestionRow>(
       `SELECT si.item_order, si.section, si.test_position, si.item_id, si.item_version,
-              iv.item_type, iv.stem, iv.choices, iv.content_json, a.selected_option
+              iv.item_type, iv.stem, iv.choices, iv.content_json, a.selected_option,
+              iab.audio_asset_id,
+              COALESCE((SELECT jsonb_agg(jsonb_build_object(
+                'number', iva.option_number, 'imageUrl', iva.storage_url
+              ) ORDER BY iva.option_number)
+                FROM topik_app.item_visual_assets iva
+               WHERE iva.item_id=si.item_id AND iva.item_version=si.item_version AND iva.is_current), '[]'::jsonb) visual_assets
          FROM topik_app.session_items si
          JOIN topik_bank.item_versions iv
            ON iv.item_id = si.item_id AND iv.item_version = si.item_version
          LEFT JOIN topik_app.answer_states a
            ON a.session_id = si.session_id AND a.item_order = si.item_order
+         LEFT JOIN topik_app.item_audio_bindings iab
+           ON iab.item_id=si.item_id AND iab.item_version=si.item_version AND iab.is_current
         WHERE si.session_id = $1
         ORDER BY si.item_order`,
       [sessionId],
@@ -332,7 +345,7 @@ export class TopikRepository {
       resultsUnlocked: session.results_unlocked_at !== null,
       serverTime: new Date().toISOString(),
       exam: { slug: session.slug, titleId: session.title_id, titleKo: session.title_ko },
-      questions: questions.rows.map(sanitizeQuestion),
+      questions: questions.rows.map((row) => sanitizeQuestion(row)),
     };
   }
 
@@ -445,6 +458,76 @@ export class TopikRepository {
     }
   }
 
+  async recordAudioPlayback(input: {
+    sessionId: string;
+    token: string;
+    audioAssetId: string;
+    clientPlayId: string;
+    eventType: "started" | "completed" | "interrupted";
+  }) {
+    const client = await begin();
+    try {
+      const session = await loadSession(client, input.sessionId, true);
+      assertToken(session, input.token);
+      if (isExpired(session)) {
+        await finalizeInTransaction(client, session, true);
+        await client.query("COMMIT");
+        return { submitted: true };
+      }
+      if (session.status !== "in_progress") throw sessionClosed();
+      const asset = await client.query<{ storage_path: string; repeat_count: number }>(
+        `SELECT taa.storage_path,
+                MAX(COALESCE((iv.content_json->>'repeat_count')::int,1))::int repeat_count
+           FROM topik_app.session_items si
+           JOIN topik_bank.item_versions iv ON iv.item_id=si.item_id AND iv.item_version=si.item_version
+           JOIN topik_app.item_audio_bindings iab
+             ON iab.item_id=si.item_id AND iab.item_version=si.item_version AND iab.is_current
+           JOIN topik_app.tts_audio_assets taa ON taa.audio_asset_id=iab.audio_asset_id
+          WHERE si.session_id=$1 AND iab.audio_asset_id=$2
+          GROUP BY taa.storage_path`,
+        [input.sessionId, input.audioAssetId],
+      );
+      const audio = asset.rows[0];
+      if (!audio) throw notFound("Audio asset not found in this session");
+
+      let playNumber: number;
+      const started = await client.query<{ play_number: number }>(
+        `SELECT play_number FROM topik_app.audio_playback_events
+          WHERE session_id=$1 AND audio_asset_id=$2 AND client_play_id=$3 AND event_type='started'`,
+        [input.sessionId, input.audioAssetId, input.clientPlayId],
+      );
+      if (started.rows[0]) {
+        playNumber = started.rows[0].play_number;
+      } else if (input.eventType === "started") {
+        const count = await client.query<{ count: string }>(
+          `SELECT COUNT(DISTINCT client_play_id)::text count FROM topik_app.audio_playback_events
+            WHERE session_id=$1 AND audio_asset_id=$2 AND event_type='started'`,
+          [input.sessionId, input.audioAssetId],
+        );
+        playNumber = Number(count.rows[0]?.count ?? 0) + 1;
+        if (session.mode === "timed" && playNumber > audio.repeat_count) {
+          throw new AppError(409, "AUDIO_REPLAY_LIMIT", "The listening replay limit has been reached");
+        }
+      } else {
+        throw new AppError(409, "AUDIO_NOT_STARTED", "Start the audio before completing it");
+      }
+      await client.query(
+        `INSERT INTO topik_app.audio_playback_events(
+           playback_event_id,client_play_id,session_id,audio_asset_id,event_type,play_number
+         ) VALUES ($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (client_play_id,event_type) DO NOTHING`,
+        [randomUUID(),input.clientPlayId,input.sessionId,input.audioAssetId,input.eventType,playNumber],
+      );
+      await client.query("COMMIT");
+      if (input.eventType !== "started") return { submitted: false, playNumber };
+      const audioUrl = await new SupabaseStorage().signedAudioUrl(audio.storage_path);
+      return { submitted: false, playNumber, maxPlays: session.mode === "timed" ? audio.repeat_count : null, audioUrl };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally { client.release(); }
+  }
+
   async submitSession(sessionId: string, token: string) {
     const client = await begin();
     try {
@@ -542,12 +625,20 @@ export class TopikRepository {
     }>(
       `SELECT si.item_order, si.section, si.test_position, si.item_id, si.item_version,
               iv.item_type, iv.stem, iv.choices, iv.content_json,
-              ro.selected_option, iv.correct_answer, iv.explanation
+              ro.selected_option, iv.correct_answer, iv.explanation,
+              iab.audio_asset_id,
+              COALESCE((SELECT jsonb_agg(jsonb_build_object(
+                'number', iva.option_number, 'imageUrl', iva.storage_url
+              ) ORDER BY iva.option_number)
+                FROM topik_app.item_visual_assets iva
+               WHERE iva.item_id=si.item_id AND iva.item_version=si.item_version AND iva.is_current), '[]'::jsonb) visual_assets
          FROM topik_app.response_observations ro
          JOIN topik_app.session_items si
            ON si.session_id = ro.session_id AND si.item_order = ro.item_order
          JOIN topik_bank.item_versions iv
            ON iv.item_id = si.item_id AND iv.item_version = si.item_version
+         LEFT JOIN topik_app.item_audio_bindings iab
+           ON iab.item_id=si.item_id AND iab.item_version=si.item_version AND iab.is_current
         WHERE ro.session_id = $1 AND ro.is_correct = FALSE
         ORDER BY si.item_order`,
       [sessionId],
@@ -561,7 +652,7 @@ export class TopikRepository {
       submittedAt: session.submitted_at?.toISOString() ?? null,
       incorrectCount: wrong.rowCount ?? 0,
       incorrect: wrong.rows.map((row) => ({
-        ...sanitizeQuestion(row),
+        ...sanitizeQuestion(row, { includeTranscript: true }),
         correctAnswer: row.correct_answer,
         explanation: row.explanation,
       })),

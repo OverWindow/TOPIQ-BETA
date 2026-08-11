@@ -1,12 +1,103 @@
+# Dependencies and package-manager caches
 node_modules/
 .pnpm-store/
+.npm/
+
+# Build output and generated caches
 dist/
+build/
 coverage/
+.nyc_output/
+.vite/
+.vitest/
+.turbo/
+.cache/
+.eslintcache
+*.tsbuildinfo
+vite.config.*.timestamp-*
+
+# Test and browser automation artifacts
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+junit.xml
+
+# Local environment files (keep sanitized templates)
 .env
 .env.*
 !.env.example
-.DS_Store
+!.env.*.example
+
+# Credentials, private keys, and local secrets
+credentials/
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*service-account*.json
+*service_account*.json
+google-credentials*.json
+firebase-adminsdk*.json
+supabase-service-role*.json
+
+# Local databases, dumps, and runtime state
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.dump
+*.bak
+*.pid
+*.pid.lock
+
+# Logs
+logs/
 *.log
-.vite/
-playwright-report/
-test-results/
+*.log.*
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Hosting and deployment CLI state
+.vercel/
+.render/
+
+# Temporary files
+.tmp/
+tmp/
+temp/
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+*.tgz
+
+# IDE and editor-local files
+.idea/
+.fleet/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Operating-system metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/

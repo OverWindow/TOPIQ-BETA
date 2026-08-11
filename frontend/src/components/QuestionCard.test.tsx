@@ -134,4 +134,34 @@ describe("QuestionCard", () => {
     render(<QuestionCard question={{ ...baseQuestion, selectedOption: 1 }} disabled showResult={{ correctAnswer: 2 }} />);
     expect(screen.getByText("불러서").closest("button")).toHaveClass("border-emerald-400");
   });
+
+  it("renders listening image choices without exposing descriptions and shows transcripts only when supplied", async () => {
+    const onAnswer = vi.fn();
+    render(<QuestionCard question={makeQuestion({
+      section: "listening",
+      itemType: "visual_scene",
+      stem: "",
+      questionPrompt: "다음을 듣고 알맞은 그림을 고르십시오.",
+      choices: [],
+      visualOptions: [1, 2, 3, 4].map((number) => ({ number, imageUrl: `https://example.com/${number}.png` })),
+      transcript: [{ speaker: "여자", text: "결과에서만 보이는 대본입니다." }],
+    })} onAnswer={onAnswer} />);
+    expect(screen.getAllByRole("img")).toHaveLength(4);
+    for (const image of screen.getAllByRole("img")) {
+      expect(image).toHaveClass("max-w-full", "object-contain");
+      expect(image.parentElement).toHaveClass("min-w-0", "overflow-hidden");
+      expect(image.closest("button")).toHaveClass("min-w-0", "overflow-hidden");
+    }
+    expect(screen.getByText("듣기 대본")).toBeInTheDocument();
+    await userEvent.click(screen.getByAltText("선택지 3"));
+    expect(onAnswer).toHaveBeenCalledWith(3);
+  });
+
+  it("labels paired listening questions as common listening", () => {
+    render(<QuestionCard question={makeQuestion({
+      section: "listening", itemType: "paired_21_22", stem: "", passage: "",
+      questionPrompt: "들은 내용과 같은 것을 고르십시오.",
+    })} />);
+    expect(screen.getByText("21~22번 공통 듣기")).toBeInTheDocument();
+  });
 });

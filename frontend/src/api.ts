@@ -1,4 +1,4 @@
-import type { Exam, ExamMode, Locale, Results, TestSession } from "./types";
+import type { AdminListeningGroup, AdminListeningMockTest, AdminReadingItem, AdminResponseObservation, AdminResponseSession, AdminSummary, Exam, ExamMode, Locale, Results, TestSession, TtsJob, TtsStyle } from "./types";
 
 const API_BASE = (
   import.meta.env.VITE_API_BASE_URL ||
@@ -57,6 +57,85 @@ function auth(token: string): HeadersInit {
   return { Authorization: `Bearer ${token}` };
 }
 
+export const adminApi = {
+  login(email: string, password: string) {
+    return request<{ accessToken: string; expiresAt: number; admin: { id: string; email: string } }>("/v1/admin/auth/login", {
+      method: "POST", body: JSON.stringify({ email, password }),
+    });
+  },
+  me(token: string) { return request<{ admin: { id: string; email: string } }>("/v1/admin/me", { headers: auth(token) }); },
+  dashboard(token: string) { return request<{ summary: AdminSummary }>("/v1/admin/dashboard", { headers: auth(token) }); },
+  listeningItems(token: string, filters: { setId?: string; status?: string } = {}) {
+    const query = new URLSearchParams(Object.entries(filters).filter((entry): entry is [string, string] => Boolean(entry[1])));
+    return request<{ items: AdminListeningGroup[] }>(`/v1/admin/listening/items${query.size ? `?${query}` : ""}`, { headers: auth(token) });
+  },
+  readingItems(token: string, filters: { setId?: string; search?: string } = {}) {
+    const query = new URLSearchParams(Object.entries(filters).filter((entry): entry is [string, string] => Boolean(entry[1])));
+    return request<{ items: AdminReadingItem[] }>(`/v1/admin/reading/items${query.size ? `?${query}` : ""}`, { headers: auth(token) });
+  },
+  responseSessions(token: string, filters: { section?: string; correctness?: string; page?: number; pageSize?: number } = {}) {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== "") query.set(key, String(value));
+    return request<{ sessions: AdminResponseSession[]; total: number }>(`/v1/admin/responses/sessions${query.size ? `?${query}` : ""}`, { headers: auth(token) });
+  },
+  responseSession(token: string, sessionId: string) {
+    return request<{ responses: AdminResponseObservation[] }>(`/v1/admin/responses/sessions/${sessionId}`, { headers: auth(token) });
+  },
+  deleteResponseSessions(token: string, sessionIds: string[]) {
+    return request<{ deletedSessions: number; deletedObservations: number }>("/v1/admin/responses/sessions", {
+      method: "DELETE", headers: auth(token), body: JSON.stringify({ sessionIds }),
+    });
+  },
+  deleteAllResponseSessions(token: string, confirmation: string) {
+    return request<{ deletedSessions: number; deletedObservations: number }>("/v1/admin/responses/sessions/all", {
+      method: "DELETE", headers: auth(token), body: JSON.stringify({ confirmation }),
+    });
+  },
+  jobs(token: string) { return request<{ jobs: TtsJob[] }>("/v1/admin/tts/jobs", { headers: auth(token) }); },
+  mockTests(token: string) { return request<{ mockTests: AdminListeningMockTest[] }>("/v1/admin/listening/mock-tests", { headers: auth(token) }); },
+  audioUrl(token: string, audioAssetId: string) {
+    return request<{ audioUrl: string }>(`/v1/admin/listening/audio/${audioAssetId}/url`, { headers: auth(token) });
+  },
+  generateItem(token: string, itemId: string, itemVersion: number, forceRegenerate = false, ttsStyle: TtsStyle = { speakingRate: 1, stylePrompt: "" }) {
+    return request<{ jobId: string; queued: boolean }>(`/v1/admin/listening/items/${itemId}/versions/${itemVersion}/tts`, {
+      method: "POST", headers: auth(token), body: JSON.stringify({ forceRegenerate, ttsStyle }),
+    });
+  },
+  generateSet(token: string, setId: string, setVersion: number, forceRegenerate = false, ttsStyle: TtsStyle = { speakingRate: 1, stylePrompt: "" }) {
+    return request<{ queued: number; jobIds: string[] }>(`/v1/admin/listening/sets/${setId}/versions/${setVersion}/tts`, {
+      method: "POST", headers: auth(token), body: JSON.stringify({ forceRegenerate, ttsStyle }),
+    });
+  },
+  generateGroup(token: string, setId: string, setVersion: number, leaderItemId: string, forceRegenerate = false, ttsStyle: TtsStyle = { speakingRate: 1, stylePrompt: "" }) {
+    return request<{ jobId: string | null; queued: boolean; targetCount: number }>(`/v1/admin/listening/sets/${setId}/versions/${setVersion}/audio-groups/${leaderItemId}/tts`, {
+      method: "POST", headers: auth(token), body: JSON.stringify({ forceRegenerate, ttsStyle }),
+    });
+  },
+  deleteAudio(token: string, itemId: string, itemVersion: number, audioAssetId: string) {
+    return request<{ deleted: boolean; storageDeleted: boolean; sharedAssetRetained: boolean }>(
+      `/v1/admin/listening/items/${itemId}/versions/${itemVersion}/audio/${audioAssetId}`,
+      { method: "DELETE", headers: auth(token) },
+    );
+  },
+  deleteGroupAudio(token: string, setId: string, setVersion: number, leaderItemId: string, audioAssetId: string) {
+    return request<{ deleted: boolean; deletedBindings: number; storageDeleted: boolean; sharedAssetRetained: boolean }>(
+      `/v1/admin/listening/sets/${setId}/versions/${setVersion}/audio-groups/${leaderItemId}/audio/${audioAssetId}`,
+      { method: "DELETE", headers: auth(token) },
+    );
+  },
+  uploadVisual(token: string, itemId: string, itemVersion: number, optionNumber: number, file: File) {
+    const form = new FormData(); form.set("file", file);
+    return request<{ visualAssetId: string; url: string }>(`/v1/admin/listening/items/${itemId}/versions/${itemVersion}/visual-options/${optionNumber}`, {
+      method: "POST", headers: auth(token), body: form,
+    });
+  },
+  publish(token: string, mockTestId: string, published: boolean) {
+    return request<{ published: boolean }>(`/v1/admin/listening/mock-tests/${mockTestId}/publish`, {
+      method: "PUT", headers: auth(token), body: JSON.stringify({ published }),
+    });
+  },
+};
+
 export const api = {
   async exams(): Promise<Exam[]> {
     const data = await request<{ exams: Exam[] }>("/v1/exams");
@@ -109,6 +188,16 @@ export const api = {
           body: JSON.stringify({ clientEventId, selectedOption, durationMs }),
         },
       ),
+    );
+  },
+
+  audioPlayback(
+    sessionId: string, token: string, audioAssetId: string, clientPlayId: string,
+    eventType: "started" | "completed" | "interrupted",
+  ) {
+    return request<{ submitted: boolean; playNumber?: number; maxPlays?: number | null; audioUrl?: string }>(
+      `/v1/sessions/${sessionId}/audio/${audioAssetId}/playback`,
+      { method: "POST", headers: auth(token), body: JSON.stringify({ clientPlayId, eventType }) },
     );
   },
 

@@ -38,9 +38,10 @@ const fallbackInstructions: Record<string, string> = {
   similar_expression: "밑줄 친 부분과 의미가 가장 비슷한 것을 고르십시오.",
 };
 
-function pairedLabel(itemType: string) {
+function pairedLabel(itemType: string, listening: boolean) {
   const match = /^paired_(\d+)_(\d+)$/.exec(itemType);
-  return match ? `${match[1]}~${match[2]}번 공통 지문` : "공통 지문";
+  const suffix = listening ? "공통 듣기" : "공통 지문";
+  return match ? `${match[1]}~${match[2]}번 ${suffix}` : suffix;
 }
 
 export function getQuestionPresentation(question: Question): QuestionPresentation {
@@ -53,20 +54,20 @@ export function getQuestionPresentation(question: Question): QuestionPresentatio
   const instruction =
     question.questionPrompt ||
     fallbackInstructions[question.itemType] ||
-    "다음을 읽고 물음에 답하십시오.";
-  const twoColumn =
+    (question.section === "listening" ? "다음을 듣고 물음에 답하십시오." : "다음을 읽고 물음에 답하십시오.");
+  const twoColumn = question.section !== "listening" && (
     layout === "passage" ||
     layout === "paired" ||
     layout === "sequence" ||
     layout === "insertion" ||
-    (layout === "blank" && question.itemType === "paragraph_blank");
+    (layout === "blank" && question.itemType === "paragraph_blank"));
 
   return {
     layout,
     instruction,
     body,
     auxiliary: question.auxiliaryText,
-    groupLabel: isPaired ? pairedLabel(question.itemType) : "",
+    groupLabel: isPaired ? pairedLabel(question.itemType, question.section === "listening") : "",
     twoColumn,
   };
 }

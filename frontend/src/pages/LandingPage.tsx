@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpen, CheckCircle2, Clock3, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, CheckCircle2, Clock3, Headphones, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
@@ -104,7 +104,7 @@ export function LandingPage() {
                   <article key={exam.id} className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_rgba(30,51,86,.06)] sm:p-8">
                     <div className="flex items-start justify-between gap-4">
                       <span className="grid size-13 place-items-center rounded-2xl bg-[#155fcc] text-xl font-black text-white">{index + 1}</span>
-                      <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-extrabold text-slate-500">50 × 2 PTS</span>
+                      <span className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-extrabold text-slate-500">{exam.section === "listening" ? <Headphones className="size-3.5" /> : <BookOpen className="size-3.5" />}{exam.section.toUpperCase()} · 50 × 2 PTS</span>
                     </div>
                     <h3 className="mt-7 text-2xl font-black text-slate-900">{locale === "id" ? exam.titleId : exam.titleKo}</h3>
                     <p className="mt-3 leading-7 text-slate-600">{locale === "id" ? exam.descriptionId : exam.descriptionKo}</p>
@@ -112,7 +112,7 @@ export function LandingPage() {
                       {(["timed", "practice"] as ExamMode[]).map((value) => (
                         <button key={value} onClick={() => setModes((current) => ({ ...current, [exam.id]: value }))} className={`focus-ring rounded-2xl border p-4 text-left ${mode === value ? "border-[#155fcc] bg-blue-50 shadow-[0_0_0_1px_#155fcc]" : "border-slate-200 hover:border-blue-200"}`} aria-pressed={mode === value}>
                           <span className="flex items-center gap-2 text-sm font-extrabold text-slate-900">{value === "timed" ? <Clock3 className="size-4 text-[#155fcc]" /> : <RotateCcw className="size-4 text-[#155fcc]" />}{t(value)}</span>
-                          <span className="mt-2 block text-xs leading-5 text-slate-500">{t(value === "timed" ? "timedDesc" : "practiceDesc")}</span>
+                          <span className="mt-2 block text-xs leading-5 text-slate-500">{value === "timed" ? `${Math.round(exam.durationSeconds / 60)}분 · ${t("autoSubmit")}` : t("practiceDesc")}</span>
                         </button>
                       ))}
                     </div>

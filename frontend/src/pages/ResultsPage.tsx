@@ -1,5 +1,5 @@
-import { ArrowLeft, CheckCircle2, CircleX, Trophy } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { ArrowLeft, CheckCircle2, ChevronDown, CircleX, Trophy } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, api, getSessionToken } from "../api";
 import { Header } from "../components/Header";
@@ -7,6 +7,7 @@ import { QuestionCard } from "../components/QuestionCard";
 import { ErrorState, LoadingState } from "../components/States";
 import { useI18n } from "../i18n";
 import type { Results } from "../types";
+import { questionTypeLabel } from "../questionTypeLabels";
 
 export function ResultsPage() {
   const { sessionId } = useParams();
@@ -16,6 +17,7 @@ export function ResultsPage() {
   const [results, setResults] = useState<Results | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   const load = useCallback(async () => {
     if (!sessionId || !token) return setLoading(false);
@@ -33,6 +35,15 @@ export function ResultsPage() {
     }
   }, [navigate, sessionId, token]);
   useEffect(() => { void load(); }, [load]);
+
+  const incorrectGroups = useMemo(() => {
+    const groups = new Map<string, NonNullable<typeof results>["incorrect"]>();
+    for (const question of results?.incorrect ?? []) {
+      const key = `${question.section}:${question.itemType}`;
+      groups.set(key, [...(groups.get(key) ?? []), question]);
+    }
+    return Array.from(groups.values());
+  }, [results]);
 
   if (!sessionId || !token) return <><Header compact /><ErrorState message={t("sessionMissing")} /></>;
   if (loading) return <div className="min-h-screen bg-[#f7f9fc]"><Header compact /><LoadingState /></div>;
@@ -68,18 +79,21 @@ export function ResultsPage() {
           {results.incorrect.length === 0 ? (
             <div className="mt-7 rounded-3xl border border-emerald-200 bg-emerald-50 p-10 text-center font-extrabold text-emerald-800">{t("perfect")}</div>
           ) : (
-            <div className="mt-7 space-y-8">
-              {results.incorrect.map((question) => (
-                <article key={question.itemOrder}>
-                  <QuestionCard question={question} disabled showResult={{ correctAnswer: question.correctAnswer }} />
-                  <div className="mx-3 rounded-b-3xl border border-t-0 border-blue-100 bg-blue-50 p-5 sm:mx-6 sm:p-6">
-                    <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm font-bold"><span className="text-slate-600">{t("yourAnswer")}: <strong className="text-slate-900">{question.selectedOption ?? t("noAnswer")}</strong></span><span className="text-slate-600">{t("correctAnswer")}: <strong className="text-[#155fcc]">{question.correctAnswer}</strong></span></div>
-                    <p className="mt-4 text-xs font-extrabold text-[#155fcc]">{t("explanation")}</p>
-                    <p className="question-copy mt-2 text-sm font-medium text-slate-700 sm:text-base">{question.explanation || "—"}</p>
-                  </div>
-                </article>
-              ))}
-            </div>
+            <>
+              <div className="mt-7 rounded-3xl border border-slate-200 bg-white p-5 sm:p-7">
+                <p className="text-xs font-black tracking-[.12em] text-[#155fcc]">WRONG ANSWER SUMMARY</p>
+                <h3 className="mt-2 text-xl font-black text-slate-900">{locale === "ko" ? "틀린 유형과 문제" : "Jenis dan nomor soal yang salah"}</h3>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  {incorrectGroups.map((questions) => <button key={`${questions[0].section}-${questions[0].itemType}`} onClick={() => { const order = questions[0].itemOrder; setExpanded((current) => new Set(current).add(order)); document.getElementById(`incorrect-${order}`)?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="focus-ring flex items-center justify-between rounded-2xl border border-slate-200 p-4 text-left hover:border-blue-300 hover:bg-blue-50/40"><span><b className="block text-sm text-slate-900">{questionTypeLabel(questions[0].itemType, questions[0].section, locale)}</b><span className="mt-1 block text-xs font-bold text-slate-400">{questions.map((question) => `${question.itemOrder}${locale === "ko" ? "번" : ""}`).join(", ")}</span></span><span className="rounded-full bg-red-50 px-3 py-1.5 text-xs font-black text-red-600">{questions.length}</span></button>)}
+                </div>
+              </div>
+              <div className="mt-6 space-y-3">
+                {results.incorrect.map((question) => {
+                  const isOpen = expanded.has(question.itemOrder);
+                  return <article id={`incorrect-${question.itemOrder}`} key={question.itemOrder} className="scroll-mt-24 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"><button onClick={() => setExpanded((current) => { const next = new Set(current); isOpen ? next.delete(question.itemOrder) : next.add(question.itemOrder); return next; })} className="focus-ring flex w-full items-center gap-4 p-5 text-left sm:p-6"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-red-50 font-black text-red-600">{question.itemOrder}</span><span className="min-w-0 flex-1"><b className="block text-sm text-slate-900">{questionTypeLabel(question.itemType, question.section, locale)}</b><span className="mt-1 block text-xs font-bold text-slate-500">{t("yourAnswer")} {question.selectedOption ?? t("noAnswer")} · {t("correctAnswer")} {question.correctAnswer}</span></span><ChevronDown className={`size-5 shrink-0 text-slate-400 transition ${isOpen ? "rotate-180" : ""}`} /></button>{isOpen && <div className="border-t border-slate-100 bg-slate-50/60 p-3 sm:p-5"><QuestionCard question={question} disabled showResult={{ correctAnswer: question.correctAnswer }} /><div className="mx-3 rounded-b-3xl border border-t-0 border-blue-100 bg-blue-50 p-5 sm:mx-6 sm:p-6"><p className="text-xs font-extrabold text-[#155fcc]">{t("explanation")}</p><p className="question-copy mt-2 text-sm font-medium text-slate-700 sm:text-base">{question.explanation || "—"}</p></div></div>}</article>;
+                })}
+              </div>
+            </>
           )}
         </section>
       </main>
