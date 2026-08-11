@@ -14,7 +14,7 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: APP_ORIGINS
-        value: https://topik.unigate.kr
+        value: https://topiq.unigate.kr
       - key: DATABASE_SSL
         value: require
       - key: TRUST_PROXY
