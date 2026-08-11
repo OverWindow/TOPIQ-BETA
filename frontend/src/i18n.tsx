@@ -62,7 +62,7 @@ const messages = {
     navTests: "모의고사",
     navGuide: "이용 안내",
     heroEyebrow: "UNIGATE TOPIK LAB",
-    heroTitle: "모의 테스트로 TOPIK II 실력을 확인하세요.",
+    heroTitle: "모의 테스트로 TOPIK II 실력을 확인하세요~",
     heroBody: "TOPIK II 읽기와 듣기 50문항을 실전 또는 연습 모드로 풀고, 정확한 응답 분석과 오답 해설을 확인할 수 있습니다.",
     chooseTest: "모의고사 선택",
     chooseSubtitle: "읽기 또는 듣기 모의고사를 선택하세요. 각 회차는 50문항, 총 100점입니다.",
